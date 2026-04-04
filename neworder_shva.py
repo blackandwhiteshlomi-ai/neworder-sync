@@ -28,6 +28,53 @@ TERMINALS = {
     "2722732015": "יציל",
 }
 
+# מנהלים לקבל התראות
+MANAGER_PHONES = ["972542272345"]  # זיו
+
+
+# ─── שליחת התראה WhatsApp ──────────────────────────────────
+def send_whatsapp_alert(date_str: str, missing_terminals: list):
+    """שולח התראה למנהלים כשמסוף לא סגר קופה עד 21:00"""
+    if not missing_terminals:
+        return
+
+    names = [TERMINALS.get(t, t) for t in missing_terminals]
+    msg = (
+        f"⚠️ *התראה — קופה לא נסגרה!*\n\n"
+        f"📅 תאריך: {date_str}\n"
+        f"🖥️ מסופים: {', '.join(names)}\n\n"
+        f"נא לסגור קופה ולשדר לשב\"א בהקדם."
+    )
+
+    print(f"\n📱 שולח התראה WhatsApp: {names}")
+
+    # שמור לקובץ לוג
+    with open("alerts.log", "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now()} — {msg}\n\n")
+
+    # שלח ל-Base44 MessageQueue
+    for phone in MANAGER_PHONES:
+        try:
+            r = requests.post(
+                f"{B44_URL}/entities/MessageQueue",
+                headers=B44_HDR,
+                json={
+                    "message_type": "whatsapp",
+                    "recipient": phone,
+                    "content": msg,
+                    "priority": "high",
+                    "status": "pending",
+                    "related_entity_type": "NOSBroadcast",
+                },
+                timeout=10
+            )
+            if r.ok:
+                print(f"  ✅ התראה נשלחה ל-{phone}")
+            else:
+                print(f"  ❌ שגיאה: {r.text[:100]}")
+        except Exception as e:
+            print(f"  ❌ שגיאת שליחה: {e}")
+
 
 # ─── כניסה ────────────────────────────────────────────────
 def login(page):
@@ -266,6 +313,20 @@ def process_rows(rows: list, date_str: str) -> dict:
                 except:
                     pass
 
+        # ── מצא תאריך ושעת שידור מקורי ──
+        # col1 = תאריך שידור בפורמט DD/MM/YYYY HH:MM
+        broadcast_at = None
+        for col in ['col1', 'col0']:
+            val = str(row.get(col, "")).strip()
+            if "/" in val and ":" in val:
+                try:
+                    # פורמט: DD/MM/YYYY HH:MM
+                    dt = datetime.strptime(val, "%d/%m/%Y %H:%M")
+                    broadcast_at = dt.isoformat()
+                    break
+                except:
+                    pass
+
         name = TERMINALS[terminal_id]
         if terminal_id not in result:
             result[terminal_id] = {
@@ -273,10 +334,13 @@ def process_rows(rows: list, date_str: str) -> dict:
                 "total": 0.0,
                 "transactions": 0,
                 "date": date_str,
+                "broadcast_at": broadcast_at,
                 "raw": []
             }
         result[terminal_id]["total"] += total
         result[terminal_id]["transactions"] += txn_count
+        if broadcast_at:
+            result[terminal_id]["broadcast_at"] = broadcast_at
         result[terminal_id]["raw"].append(row)
 
     return result
@@ -293,6 +357,7 @@ def save_to_base44(date_str: str, terminal_id: str, data: dict):
         "transactions_count": data["transactions"],
         "status":             "ok" if data["total"] > 0 else "missing",
         "synced_at":          datetime.now().isoformat(),
+        "broadcast_at":       data.get("broadcast_at"),
     }
     r = requests.post(
         f"{B44_URL}/entities/NOSBroadcast",
