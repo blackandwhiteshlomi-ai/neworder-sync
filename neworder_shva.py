@@ -19,9 +19,9 @@ COMPANY   = os.getenv("NEWORDER_COMPANY",  "שחור לבן")
 PASSWORD  = os.getenv("NEWORDER_PASSWORD", "")
 
 B44_APP   = os.getenv("BASE44_APP_ID", "68fd2f221049dfcfb0277c40")
-B44_KEY   = os.getenv("BASE44_API_KEY", "")
+B44_KEY   = os.getenv("BASE44_API_KEY", "f8f98495094f4d55a3fb4fdfdf108260")
 B44_URL   = f"https://base44.app/api/apps/{B44_APP}"
-B44_HDR   = {"Content-Type": "application/json", "Authorization": f"Bearer {B44_KEY}"}
+B44_HDR   = {"Content-Type": "application/json", "api_key": B44_KEY}
 
 TERMINALS = {
     "2722802011": "גמא",
@@ -282,28 +282,28 @@ def process_rows(rows: list, date_str: str) -> dict:
     return result
 
 
-# ─── שמירה ל-Base44 ───────────────────────────────────────
+# ─── שמירה ל-Base44 → NOSBroadcast ──────────────────────
 def save_to_base44(date_str: str, terminal_id: str, data: dict):
     d, m, y = date_str.split("/")
+    record = {
+        "date":               f"{y}-{m}-{d}",
+        "terminal_id":        terminal_id,
+        "terminal_name":      data["name"],
+        "total_amount":       data["total"],
+        "transactions_count": data["transactions"],
+        "status":             "ok" if data["total"] > 0 else "missing",
+        "synced_at":          datetime.now().isoformat(),
+    }
     r = requests.post(
-        f"{B44_URL}/entities/CashRegister/bulk",
+        f"{B44_URL}/entities/NOSBroadcast",
         headers=B44_HDR,
-        json={"records": [{
-            "register_name":       data["name"],
-            "date":                f"{y}-{m}-{d}",
-            "total_sales":         data["total"],
-            "transactions_count":  data["transactions"],
-            "status":              "closed" if data["total"] > 0 else "open",
-            "shva_broadcast_sent": data["total"] > 0,
-            "opened_by":           "NewOrder Sync",
-            "transactions":        {"credit": data["total"], "cash": 0},
-        }]},
+        json=record,
         timeout=15
     )
     if r.ok:
-        print(f"  ✅ Base44: {data['name']} = ₪{data['total']:,.2f}")
+        print(f"  ✅ NOSBroadcast: {data['name']} = ₪{data['total']:,.2f}")
     else:
-        print(f"  ❌ Base44 שגיאה: {r.text[:200]}")
+        print(f"  ❌ Base44 שגיאה: {r.text[:300]}")
 
 
 # ─── ריצה ─────────────────────────────────────────────────
@@ -380,20 +380,19 @@ def run(test_date: str = None):
 
 
 def already_saved(date_str: str, terminal_id: str) -> bool:
-    """בודק אם כבר יש רשומה ל-Base44 לאותו מסוף ותאריך"""
+    """בודק אם כבר יש רשומה ב-NOSBroadcast לאותו מסוף ותאריך"""
     if not B44_KEY:
         return False
     d, m, y = date_str.split("/")
     date_iso = f"{y}-{m}-{d}"
-    name = TERMINALS[terminal_id]
     try:
         r = requests.get(
-            f"{B44_URL}/entities/CashRegister",
+            f"{B44_URL}/entities/NOSBroadcast",
             headers=B44_HDR,
             params={"query": json.dumps({
                 "date": date_iso,
-                "register_name": name,
-                "status": "closed"
+                "terminal_id": terminal_id,
+                "status": "ok"
             }), "limit": 1},
             timeout=10
         )
@@ -422,10 +421,9 @@ def run_with_retry(test_date: str = None):
     max_attempts = len(run_times)
 
     for attempt in range(max_attempts):
-        print(f"
-{'='*55}")
+        print("\n" + "="*55)
         print(f"🔄 ניסיון {attempt+1}/{max_attempts} — {today}")
-        print(f"{'='*55}")
+        print("="*55)
 
         results = {}
 
@@ -458,8 +456,7 @@ def run_with_retry(test_date: str = None):
                 missing.append((tid, name))
 
         # ── סיכום הניסיון ──
-        print(f"
-📋 סיכום ניסיון {attempt+1} — {today}")
+        print(f"\n📋 סיכום ניסיון {attempt+1} — {today}")
         for tid, data in results.items():
             if data["total"] > 0:
                 print(f"  ✅ {data['name']:8s}: ₪{data['total']:>12,.2f}  ({data['transactions']} עסקאות)")
@@ -477,28 +474,24 @@ def run_with_retry(test_date: str = None):
 
         # ── אם הכל טופל → סיים ──
         if not missing:
-            print(f"
-✅ כל המסופים נסגרו! מסיים.")
+            print(f"✅ כל המסופים נסגרו! מסיים.")
             break
 
         # ── אם זה הניסיון האחרון → שלח התראה ──
         if attempt == max_attempts - 1:
             names = [name for _, name in missing]
-            print(f"
-⚠️  21:00 — עדיין לא נסגרו: {', '.join(names)}")
+            print(f"⚠️  21:00 — עדיין לא נסגרו: {', '.join(names)}")
             send_whatsapp_alert(today, [tid for tid, _ in missing])
             break
 
         # ── אחרת → המתן לניסיון הבא ──
         if not test_date:
             wait_minutes = 30
-            print(f"
-⏳ ממתין {wait_minutes} דקות לניסיון הבא...")
+            print(f"⏳ ממתין {wait_minutes} דקות לניסיון הבא...")
             time_module.sleep(wait_minutes * 60)
         else:
             # במצב בדיקה — לא ממתינים
-            print(f"
-🧪 מצב בדיקה — לא ממתין")
+            print(f"🧪 מצב בדיקה — לא ממתין")
             break
 
     # שמור JSON
