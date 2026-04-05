@@ -83,11 +83,15 @@ def login(page):
     page.wait_for_timeout(2000)
 
     # מלא לפי סדר קבוע: שם משתמש, שם חברה, סיסמה
-    # שלב 1 — מצא את כל שדות הטקסט לפי סדר
     text_inputs = page.query_selector_all("input[type='text']")
     pass_inputs = page.query_selector_all("input[type='password']")
     
     print(f"  נמצאו {len(text_inputs)} שדות טקסט, {len(pass_inputs)} שדות סיסמה")
+    
+    # הדפס name/id של כל שדה לדיבאג
+    for i, inp in enumerate(text_inputs):
+        name = inp.get_attribute("name") or inp.get_attribute("id") or f"שדה{i}"
+        print(f"  טקסט {i}: name={name}")
     
     # מלא שדות טקסט: ראשון=משתמש, שני=חברה
     if len(text_inputs) >= 1:
@@ -96,6 +100,16 @@ def login(page):
     if len(text_inputs) >= 2:
         text_inputs[1].fill(COMPANY)
         print("  ✓ חברה")
+    elif len(text_inputs) == 1:
+        # אם יש רק שדה אחד — נסה JavaScript ישיר
+        print("  ⚠️ רק שדה טקסט אחד — מנסה JavaScript")
+        page.evaluate(f"""
+            () => {{
+                var inputs = document.querySelectorAll('input[type=text]');
+                if(inputs.length >= 2) inputs[1].value = '{COMPANY}';
+            }}
+        """)
+        print("  ✓ חברה (JavaScript)")
     
     # מלא סיסמה
     if len(pass_inputs) >= 1:
