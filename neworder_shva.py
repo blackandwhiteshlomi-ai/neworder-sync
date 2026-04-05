@@ -82,39 +82,34 @@ def login(page):
     page.goto(URL_LOGIN, wait_until="domcontentloaded", timeout=20000)
     page.wait_for_timeout(2000)
 
-    # מלא לפי סדר קבוע: שם משתמש, שם חברה, סיסמה
-    text_inputs = page.query_selector_all("input[type='text']")
-    pass_inputs = page.query_selector_all("input[type='password']")
+    # מלא לפי name attribute — הכי אמין
+    page.wait_for_timeout(1000)
     
-    print(f"  נמצאו {len(text_inputs)} שדות טקסט, {len(pass_inputs)} שדות סיסמה")
+    # מלא שם משתמש לפי name
+    try:
+        page.fill("input[name='txtUserName']", USERNAME)
+        print("  ✓ משתמש (txtUserName)")
+    except:
+        print("  ⚠️ לא נמצא txtUserName")
     
-    # הדפס name/id של כל שדה לדיבאג
-    for i, inp in enumerate(text_inputs):
-        name = inp.get_attribute("name") or inp.get_attribute("id") or f"שדה{i}"
-        print(f"  טקסט {i}: name={name}")
-    
-    # מלא שדות טקסט: ראשון=משתמש, שני=חברה
-    if len(text_inputs) >= 1:
-        text_inputs[0].fill(USERNAME)
-        print("  ✓ משתמש")
-    if len(text_inputs) >= 2:
-        text_inputs[1].fill(COMPANY)
-        print("  ✓ חברה")
-    elif len(text_inputs) == 1:
-        # אם יש רק שדה אחד — נסה JavaScript ישיר
-        print("  ⚠️ רק שדה טקסט אחד — מנסה JavaScript")
-        page.evaluate(f"""
-            () => {{
-                var inputs = document.querySelectorAll('input[type=text]');
-                if(inputs.length >= 2) inputs[1].value = '{COMPANY}';
-            }}
-        """)
-        print("  ✓ חברה (JavaScript)")
+    # מלא שם חברה לפי name  
+    try:
+        page.fill("input[name='txtStoreName']", COMPANY)
+        print("  ✓ חברה (txtStoreName)")
+    except:
+        print("  ⚠️ לא נמצא txtStoreName")
     
     # מלא סיסמה
-    if len(pass_inputs) >= 1:
-        pass_inputs[0].fill(PASSWORD)
-        print("  ✓ סיסמה")
+    try:
+        pass_inputs = page.query_selector_all("input[type='password']")
+        if pass_inputs:
+            pass_inputs[0].fill(PASSWORD)
+            print("  ✓ סיסמה")
+        else:
+            page.fill("input[name='txtPassword']", PASSWORD)
+            print("  ✓ סיסמה (txtPassword)")
+    except Exception as e:
+        print(f"  ⚠️ שגיאת סיסמה: {e}")
 
     cb = page.query_selector("input[type='checkbox']")
     if cb and not cb.is_checked():
