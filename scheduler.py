@@ -31,7 +31,7 @@ def check_and_run():
     is_sun_thu = wd in [6, 0, 1, 2, 3]
     is_friday  = wd == 4
 
-    if hour == 19 and minute == 30 and is_sun_thu:
+    if hour == 19 and minute == 50 and is_sun_thu:
         log(f"\n🚀 ריצה יומית — {now.strftime('%d/%m/%Y %H:%M')}")
         subprocess.run(["python", "neworder_shva.py"], check=False)
 
