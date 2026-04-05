@@ -16,7 +16,7 @@ URL_SHVA  = f"{URL_BASE}/reports/reportgenerator.aspx"
 
 USERNAME  = os.getenv("NEWORDER_USERNAME", "רבקה")
 COMPANY   = os.getenv("NEWORDER_COMPANY",  "שחור לבן")
-PASSWORD  = os.getenv("NEWORDER_PASSWORD", "300846185")
+PASSWORD  = os.getenv("NEWORDER_PASSWORD", "")
 
 B44_APP   = os.getenv("BASE44_APP_ID", "68fd2f221049dfcfb0277c40")
 B44_KEY   = os.getenv("BASE44_API_KEY", "f8f98495094f4d55a3fb4fdfdf108260")
@@ -82,22 +82,25 @@ def login(page):
     page.goto(URL_LOGIN, wait_until="domcontentloaded", timeout=20000)
     page.wait_for_timeout(2000)
 
-    inputs = page.query_selector_all(
-        "input[type='text'], input[type='password'], "
-        "input:not([type='checkbox']):not([type='submit']):not([type='button'])"
-    )
-    filled = 0
-    for inp in inputs:
-        t = (inp.get_attribute("type") or "text").lower()
-        if t == "password":
-            inp.fill(PASSWORD); filled += 1
-            print("  ✓ סיסמה")
-        elif t in ("text", ""):
-            if filled == 0:
-                inp.fill(USERNAME); print("  ✓ משתמש")
-            else:
-                inp.fill(COMPANY);  print("  ✓ חברה")
-            filled += 1
+    # מלא לפי סדר קבוע: שם משתמש, שם חברה, סיסמה
+    # שלב 1 — מצא את כל שדות הטקסט לפי סדר
+    text_inputs = page.query_selector_all("input[type='text']")
+    pass_inputs = page.query_selector_all("input[type='password']")
+    
+    print(f"  נמצאו {len(text_inputs)} שדות טקסט, {len(pass_inputs)} שדות סיסמה")
+    
+    # מלא שדות טקסט: ראשון=משתמש, שני=חברה
+    if len(text_inputs) >= 1:
+        text_inputs[0].fill(USERNAME)
+        print("  ✓ משתמש")
+    if len(text_inputs) >= 2:
+        text_inputs[1].fill(COMPANY)
+        print("  ✓ חברה")
+    
+    # מלא סיסמה
+    if len(pass_inputs) >= 1:
+        pass_inputs[0].fill(PASSWORD)
+        print("  ✓ סיסמה")
 
     cb = page.query_selector("input[type='checkbox']")
     if cb and not cb.is_checked():
