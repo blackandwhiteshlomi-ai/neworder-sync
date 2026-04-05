@@ -598,5 +598,3 @@ if __name__ == "__main__":
     else:
         # מצב אוטומטי — עם retry
         run_with_retry()
-
-    input("\nלחץ Enter לסגירה...")
