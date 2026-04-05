@@ -16,7 +16,7 @@ URL_SHVA  = f"{URL_BASE}/reports/reportgenerator.aspx"
 
 USERNAME  = os.getenv("NEWORDER_USERNAME", "רבקה")
 COMPANY   = os.getenv("NEWORDER_COMPANY",  "שחור לבן")
-PASSWORD  = os.getenv("NEWORDER_PASSWORD", "")
+PASSWORD  = os.getenv("NEWORDER_PASSWORD", "300846185")
 
 B44_APP   = os.getenv("BASE44_APP_ID", "68fd2f221049dfcfb0277c40")
 B44_KEY   = os.getenv("BASE44_API_KEY", "f8f98495094f4d55a3fb4fdfdf108260")
