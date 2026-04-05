@@ -384,7 +384,7 @@ def run(test_date: str = None):
     print(f"{'='*55}")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=200)
+        browser = p.chromium.launch(headless=True, slow_mo=100)
         ctx  = browser.new_context(viewport={"width": 1280, "height": 800}, locale="he-IL")
         page = ctx.new_page()
 
