@@ -1,40 +1,53 @@
 """
 Scheduler — רץ על Railway 24/7
-מפעיל את neworder_shva.py בזמנים הנכונים:
-  א-ה: 19:30
-  שישי: 14:00
-  שבת: לא רץ
+משתמש ב-timezone של ישראל (Asia/Jerusalem)
+מתאים אוטומטית לשעון קיץ/חורף
 """
 
-import schedule
 import time
 import subprocess
 from datetime import datetime
+import pytz
 
-def should_run_today():
-    """האם צריך לרוץ היום? לא בשבת."""
-    return datetime.now().weekday() != 5  # 5 = שבת
+ISRAEL_TZ = pytz.timezone("Asia/Jerusalem")
 
-def run_sync():
-    if not should_run_today():
-        print("🕍 שבת — אין ריצה")
-        return
-    print(f"🚀 מפעיל סנכרון — {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    subprocess.run(["python", "neworder_shva.py"], check=False)
+def israel_now():
+    return datetime.now(ISRAEL_TZ)
 
-# ימים א-ה: 19:30
-schedule.every().sunday.at("19:30").do(run_sync)
-schedule.every().monday.at("19:30").do(run_sync)
-schedule.every().tuesday.at("19:30").do(run_sync)
-schedule.every().wednesday.at("19:30").do(run_sync)
-schedule.every().thursday.at("19:30").do(run_sync)
+def check_and_run():
+    """
+    בודק כל דקה אם הגיע זמן הריצה.
+    משתמש בשעון ישראל — מתאים אוטומטית לקיץ/חורף.
+    Python weekday: 0=שני, 1=שלישי, 2=רביעי, 3=חמישי, 4=שישי, 5=שבת, 6=ראשון
+    """
+    now    = israel_now()
+    hour   = now.hour
+    minute = now.minute
+    wd     = now.weekday()
 
-# שישי: 14:00
-schedule.every().friday.at("14:00").do(run_sync)
+    # ימים א-ה (ראשון=6, שני=0, שלישי=1, רביעי=2, חמישי=3)
+    is_sun_thu = wd in [6, 0, 1, 2, 3]
+    is_friday  = wd == 4
+    is_shabbat = wd == 5
 
-print("⏱️  Scheduler פעיל — ממתין לזמן הריצה...")
-print("   א-ה: 19:30 | שישי: 14:00 | שבת: לא רץ")
+    if is_shabbat:
+        return  # שבת — לא רצים
+
+    if hour == 19 and minute == 30 and is_sun_thu:
+        print(f"\n🚀 ריצה יומית — {now.strftime('%d/%m/%Y %H:%M %Z')}")
+        subprocess.run(["python", "neworder_shva.py"], check=False)
+
+    elif hour == 14 and minute == 0 and is_friday:
+        print(f"\n🚀 ריצה שישי — {now.strftime('%d/%m/%Y %H:%M %Z')}")
+        subprocess.run(["python", "neworder_shva.py"], check=False)
+
+
+# ── הפעלה ──
+print("⏱️  Scheduler פעיל!")
+print(f"   שעה: {israel_now().strftime('%d/%m/%Y %H:%M %Z')}")
+print("   א-ה: 19:30 ישראל | שישי: 14:00 | שבת: לא רץ")
+print("   שעון קיץ/חורף: אוטומטי (Asia/Jerusalem)")
 
 while True:
-    schedule.run_pending()
+    check_and_run()
     time.sleep(60)
