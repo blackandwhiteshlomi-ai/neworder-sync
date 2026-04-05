@@ -162,42 +162,56 @@ def get_all_shva(page, date_str: str) -> list:
 
     # ── מלא תאריכים ──
     fill_date(page, 0, date_str)  # מתאריך
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
     fill_date(page, 1, date_str)  # עד תאריך
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
+
+    # ── וודא שהתאריכים נכנסו ──
+    try:
+        date_inputs = page.query_selector_all("input[type='text']")
+        val0 = date_inputs[0].input_value() if len(date_inputs) > 0 else "?"
+        val1 = date_inputs[1].input_value() if len(date_inputs) > 1 else "?"
+        print(f"  📅 שדה 0: {val0} | שדה 1: {val1}")
+    except Exception as e:
+        print(f"  ⚠️ לא הצלחתי לקרוא שדות: {e}")
 
     # ── לחץ הצג דו"ח — JavaScript ישיר ──
     try:
-        # סגור לוח תאריכים אם פתוח
+        # סגור כל popup/לוח פתוח
         page.keyboard.press("Escape")
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(800)
         
+        # לחץ על גוף הדף לסגירה
+        page.mouse.click(10, 10)
+        page.wait_for_timeout(500)
+
         # לחץ על הכפתור ישירות דרך JavaScript
-        # מחפש כפתור שמכיל "הצג" בטקסט
         result = page.evaluate("""
             () => {
                 var btns = document.querySelectorAll('button');
+                var allBtns = [];
                 for(var btn of btns) {
-                    var t = btn.innerText || '';
+                    var t = (btn.innerText || '').trim();
+                    allBtns.push(t);
                     if(t.includes('הצג')) {
                         btn.click();
                         return 'clicked: ' + t;
                     }
                 }
-                // נסה input[type=button]
                 var inputs = document.querySelectorAll('input[type=button], input[type=submit]');
                 for(var inp of inputs) {
-                    var v = inp.value || '';
+                    var v = (inp.value || '').trim();
+                    allBtns.push(v);
                     if(v.includes('הצג')) {
                         inp.click();
                         return 'clicked input: ' + v;
                     }
                 }
-                return 'not found';
+                return 'not found. buttons: ' + allBtns.join(', ');
             }
         """)
         print(f"  ✓ JavaScript: {result}")
-        page.wait_for_timeout(4000)
+        page.wait_for_timeout(5000)
         
     except Exception as e:
         print(f"  ⚠️ שגיאת כפתור: {e}")
