@@ -28,7 +28,7 @@ def check_and_run():
     is_sun_thu = wd in [6, 0, 1, 2, 3]
     is_friday  = wd == 4
 
-    if hour == 20 and minute == 40 and is_sun_thu:
+    if hour == 20 and minute == 50 and is_sun_thu:
         log(f"\n🚀 ריצה יומית — {now.strftime('%d/%m/%Y %H:%M')}")
         # הרץ את הסקריפט ישירות בתוך אותו process עם stdout מחובר
         result = subprocess.run(
