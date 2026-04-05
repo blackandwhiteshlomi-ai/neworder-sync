@@ -125,7 +125,21 @@ def login(page):
     if btn: btn.click()
     page.wait_for_timeout(3000)
 
-    if "login" in page.url.lower():
+    current_url = page.url
+    print(f"  URL אחרי כניסה: {current_url}")
+    
+    if "login" in current_url.lower():
+        # צלם מסך לדיבאג
+        try:
+            page.screenshot(path="login_failed.png")
+        except:
+            pass
+        # הדפס את תוכן הדף
+        try:
+            body = page.inner_text("body")[:500]
+            print(f"  תוכן דף: {body}")
+        except:
+            pass
         raise Exception("❌ כניסה נכשלה")
     print("✅ מחובר!")
 
